@@ -1,0 +1,169 @@
+==============================================================
+   BUSCAMINAS EN JAVA — Resumen de Conceptos POO
+==============================================================
+
+ESTRUCTURA DEL PROYECTO (NetBeans)
+-----------------------------------
+BuscaMinas/
+└── src/
+    └── buscaminas/
+        ├── CeldaBase.java          ← Clase ABSTRACTA (padre)
+        ├── CeldaSegura.java        ← Subclase (hija)
+        ├── CeldaMina.java          ← Subclase (hija)
+        ├── Tablero.java            ← Lógica del juego
+        └── VentanaBuscaMinas.java  ← Ventana Swing (main aquí)
+
+
+DIAGRAMA DE JERARQUÍA
+----------------------
+
+         JButton  (API de Java)
+            │
+            │  extends (HERENCIA)
+            ▼
+        CeldaBase  ← ABSTRACTA
+       ┌────────────────────────┐
+       │ # fila : int           │  ← protected (herencia)
+       │ # columna : int        │
+       │ # revelada : boolean   │
+       │ # marcada : boolean    │
+       │ + getFila()            │  ← public (encapsulamiento)
+       │ + toggleMarca()        │
+       │ + revelar()  [abstract]│  ← abstracto (abstracción)
+       │ + esMina()   [abstract]│
+       └────────────────────────┘
+              /         \
+     extends              extends
+      /                        \
+CeldaSegura              CeldaMina
+┌──────────────┐        ┌──────────────┐
+│ - minasAdyac │        │ - detonada   │
+│ + revelar()  │        │ + revelar()  │
+│ + esMina()   │        │ + esMina()   │
+│   → false    │        │   → true     │
+└──────────────┘        └──────────────┘
+       ↑                       ↑
+       │      POLIMORFISMO      │
+       └── CeldaBase celda = new CeldaSegura() o CeldaMina() ──┘
+
+
+==============================================================
+  1. ABSTRACCIÓN
+==============================================================
+DÓNDE: CeldaBase.java
+
+  public abstract class CeldaBase extends JButton {
+      public abstract void revelar();   // sin implementación
+      public abstract boolean esMina(); // sin implementación
+  }
+
+QUÉ ES:
+  Definir QUÉ hace un objeto sin decir CÓMO lo hace.
+  CeldaBase dice "toda celda puede revelarse y puede ser mina"
+  pero NO da los detalles — cada subclase los define.
+
+POR QUÉ:
+  Si mañana añadimos CeldaEspecial, solo implementamos
+  revelar() y esMina() y funciona con el resto del código.
+
+
+==============================================================
+  2. ENCAPSULAMIENTO
+==============================================================
+DÓNDE: Todas las clases
+
+  private int minasAdyacentes;        // oculto
+  public int getMinasAdyacentes() { } // acceso controlado
+  public void setMinasAdyacentes(int n) { }
+
+REGLA:
+  private   → solo la propia clase
+  protected → la clase + sus subclases (herencia)
+  public    → todos
+
+POR QUÉ:
+  Si minasAdyacentes fuera public, cualquier clase podría
+  poner valores inválidos (ej: -5 minas). El setter puede
+  validar. El estado interno queda protegido.
+
+TAMBIÉN EN Tablero.java:
+  - El array celdas[][] es private.
+  - El método expandirVacias() es private (detalle interno).
+  - Solo revelarCelda(), marcarCelda() son públicos.
+
+
+==============================================================
+  3. HERENCIA
+==============================================================
+DÓNDE: CeldaSegura y CeldaMina
+
+  public class CeldaSegura extends CeldaBase { ... }
+  public class CeldaMina   extends CeldaBase { ... }
+
+QUÉ HEREDAN:
+  ✔ Atributos: fila, columna, revelada, marcada
+  ✔ Métodos:   getFila(), getColumna(), toggleMarca()
+  ✔ Tipo:      son JButton (via CeldaBase extends JButton)
+
+QUÉ AGREGAN:
+  CeldaSegura: minasAdyacentes, colores por número
+  CeldaMina:   detonada, revelarSinDetonar()
+
+  Cada una llama super(fila, columna) en su constructor
+  para reutilizar la inicialización del padre.
+
+POR QUÉ:
+  Sin herencia, ambas clases repetirían fila, columna,
+  revelada, marcada, toggleMarca()... violando DRY
+  (Don't Repeat Yourself).
+
+
+==============================================================
+  4. POLIMORFISMO
+==============================================================
+DÓNDE: Tablero.java y VentanaBuscaMinas.java
+
+  // El array acepta CeldaSegura Y CeldaMina:
+  CeldaBase[][] celdas = new CeldaBase[filas][columnas];
+
+  // Llamada polimórfica — Java decide en tiempo de ejecución:
+  celda.revelar();   // ¿CeldaSegura.revelar() o CeldaMina.revelar()?
+  celda.esMina();    // ¿false o true?
+
+TIPOS DE POLIMORFISMO USADOS:
+  a) Sobrescritura (Override): revelar() y esMina() en cada subclase.
+  b) Polimorfismo de subtipo: CeldaBase puede referenciar cualquier
+     subclase (Liskov Substitution Principle).
+
+POR QUÉ:
+  En el método revelarCelda() NO hay if/else para saber el tipo:
+  
+      celda.revelar();   // si es mina → explota; si es segura → muestra número
+  
+  Sin polimorfismo, habría:
+      if (celda instanceof CeldaMina) { ... }
+      else if (celda instanceof CeldaSegura) { ... }
+  
+  Eso es frágil y difícil de mantener.
+
+
+==============================================================
+  CÓMO EJECUTAR EN NETBEANS
+==============================================================
+  1. Archivo → Nuevo Proyecto → Java → Java Application
+  2. Nombre del proyecto: BuscaMinas
+  3. Eliminar la clase Main que crea NetBeans
+  4. Clic derecho en el paquete → Nuevo → Clase Java:
+       CeldaBase, CeldaSegura, CeldaMina, Tablero, VentanaBuscaMinas
+  5. Pegar el código de cada archivo
+  6. Clic derecho en VentanaBuscaMinas → Ejecutar archivo
+     (o configurar clase principal en propiedades del proyecto)
+
+
+==============================================================
+  CONTROLES DEL JUEGO
+==============================================================
+  🖱 Clic izquierdo  → Revelar celda
+  🖱 Clic derecho    → Poner / quitar bandera 🚩
+  ↺ Botón "Nuevo"   → Reiniciar partida
+==============================================================
